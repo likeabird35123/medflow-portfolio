@@ -1,5 +1,5 @@
-const pageSizes=[[1920, 1433], [1920, 1080], [1920, 1645], [1920, 1489], [1920, 1463], [1920, 1333], [1920, 1080], [1920, 1080], [1920, 1080], [1920, 1080], [1920, 1080], [1920, 3988]];
-const titles=["传统业务流程与痛点", "AI 机会点", "功能框架", "三个核心模块", "核心模块页面展示", "Agent 对话设计：目标与策略", "语音交互：降低操作成本", "近期拜访：快捷入口", "回复模板：引导完善输入", "双重核实：结果可控", "业务延续：下一步动作", "完整流程与补充展示"];
+const pageSizes=[[1920, 1081], [1920, 1433], [1920, 1080], [1920, 1645], [1920, 1489], [1920, 1463], [1920, 1333], [1920, 1080], [1920, 1080], [1920, 1080], [1920, 1080], [1920, 1834], [1920, 1080], [1920, 3796]];
+const titles=["封面与项目背景", "传统业务流程与痛点", "AI 机会点", "功能框架", "核心功能模块推导", "核心模块页面展示", "Agent 对话设计：目标与策略", "语音交互：降低操作成本", "近期拜访：快捷入口", "回复模板：引导完善输入", "双重核实：结果可控", "处理中断场景", "业务延续：下一步动作", "完整流程与补充展示"];
 const outline=document.querySelector('#outline'),pages=document.querySelector('#pages'),reader=document.querySelector('#reader');
 outline.innerHTML='<div class="nav-section">设计方案</div>'+titles.map((t,i)=>`<button class="nav-item ${i===0?'active':''}" data-page="${i}"><span>${String(i+1).padStart(2,'0')}</span>${t}</button>`).join('');
 pages.innerHTML=titles.map((t,i)=>`<section class="slide" id="slide-${i}" data-index="${i}" aria-label="${t}"><div class="slide-caption"><span>${String(i+1).padStart(2,'0')}</span>${t}</div><button data-zoom="${i}" aria-label="放大查看${t}"><img src="pages/pdf-${String(i+1).padStart(2,'0')}.jpg" width="${pageSizes[i][0]}" height="${pageSizes[i][1]}" alt="${t}设计方案" ${i?'loading="lazy"':'fetchpriority="high"'}></button></section>`).join('');
