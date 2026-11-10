@@ -137,3 +137,38 @@ let chatRenderedCount=0,chatRenderFrame=0,chatWasVisible=false;
 function positionChat(scrollTop,alignNew){const frame=++chatRenderFrame;requestAnimationFrame(()=>{if(frame!==chatRenderFrame||tab!=='ai'||page!=='root')return;const scroller=$('#content'),last=document.querySelector('#messages > .bubble:last-child');if(!last)return;let spacer=document.getElementById('chat-bottom-space');if(!spacer){spacer=document.createElement('div');spacer.id='chat-bottom-space';document.getElementById('messages').appendChild(spacer)}spacer.style.height=Math.max(0,scroller.clientHeight-last.offsetHeight-24)+'px';const target=alignNew?last.getBoundingClientRect().top-scroller.getBoundingClientRect().top+scroller.scrollTop-12:scrollTop;scroller.scrollTo({top:Math.max(0,target),behavior:'instant'});});}
 function render(){cacheCurrentFollowDraft();const isChat=tab==='ai'&&page==='root',oldScroll=chatWasVisible?$('#content').scrollTop:0,alignNew=isChat&&(!chatWasVisible||chat.length!==chatRenderedCount);window.businessContext={tab,page,aiFollowDraft:page==='review'&&!!activeFollowDraftId,clients,data,client,onClient:openClient,onTask:openTask,onFollow:followFromList,onRecord:openPlanRecords,onHistory:openHistory,onAI:()=>{const c=client;window.showDoctorAgent({doctor:clients[c],plan:data.tasks.find(t=>t.c===c)||task(),records:data.records.filter(r=>r.c===c),plans:data.tasks.filter(t=>t.c===c),onOutline:generateOutline})}};document.body.classList.toggle('visit-detail-route',page==='task');document.body.classList.toggle('ai-route',tab==='ai'&&page==='root');const current={tab,page,selected,client};if(lastRoute&&!isGoingBack){if(page==='root')routeHistory=[];else if(lastRoute.page!==page||lastRoute.client!==client||lastRoute.selected!==selected)routeHistory.push(lastRoute)}isGoingBack=false;lastRoute=current;document.body.classList.toggle('detail-route',page!=='root');document.body.classList.remove('form-route');window.applyUIUpdates(()=>{renderLegacy();if(!(tab==='home'&&page==='root'))window.upgradeBusinessViews({tab,onNav:nav,onBack:goBack});});document.body.classList.toggle('ai-empty',isChat&&chat.length===0);if(isChat){positionChat(oldScroll,alignNew);persistAISession()}chatWasVisible=isChat;chatRenderedCount=chat.length;}
 render();
+
+
+// Form drafts: persist locally without submitting business records.
+function rememberFormDraft(){
+ if(!['record','review','newplan'].includes(page))return null;
+ let d;
+ if(page==='newplan'){
+  if(!document.getElementById('new-plan-doctor'))return null;
+  captureNewPlan();d={kind:'plan',values:{...newPlanDraft},updatedAt:Date.now()};
+ }else{
+  const el=document.getElementById(page==='record'?'draft':'final-record');if(!el)return null;
+  captureFollowFields(page==='record'?'manual-follow':'review-follow');draft=el.value;
+  d={kind:'follow',page,client,selected,content:draft,method:followMethod,at:followAt,aiDraftId:activeFollowDraftId,originalInput:manualFollowOriginal,complete:!!document.getElementById('complete-old')?.checked,updatedAt:Date.now()};
+ }
+ data.formDrafts=data.formDrafts||{};data.formDrafts[d.kind]=d;save();return d;
+}
+function saveFormDraft(){const d=rememberFormDraft();if(d)toast('草稿已保存，可稍后继续填写')}
+function restoreFormDraft(kind){const d=data.formDrafts?.[kind];if(!d)return toast('暂无草稿');if(kind==='plan'){newPlanDraft={...d.values};page='newplan'}else{client=d.client;selected=d.selected;draft=d.content;followMethod=d.method;followAt=d.at;activeFollowDraftId=d.aiDraftId;manualFollowOriginal=d.originalInput||'';page=d.page;if(activeFollowDraftId&&data.followDrafts?.[activeFollowDraftId])Object.assign(data.followDrafts[activeFollowDraftId],{content:draft,method:followMethod,at:followAt})}render();if(kind==='follow'&&document.getElementById('complete-old'))document.getElementById('complete-old').checked=d.complete}
+function draftFeedback(d){return `<div class="draft-saved-card"><h3>草稿已保存</h3><p>你刚才中断了${d.kind==='follow'?'跟进记录':'拜访计划'}的提交，填写内容已保存为草稿，尚未提交。</p><button class="btn" onclick="restoreFormDraft('${d.kind}')">查看草稿</button></div>`}
+const originalDraftBack=goBack;
+goBack=function(){const d=rememberFormDraft();originalDraftBack();if(!d)return;if(tab==='ai'&&page==='root'){chat.push({role:'assistant',html:draftFeedback(d)});render()}else{page='draftsaved';window.lastSavedFormDraft=d;render()}};
+const originalDraftLegacy=renderLegacy;
+renderLegacy=function(){if(page==='draftsaved'){head('草稿已保存','',true);document.querySelector('.composer')?.remove();$('#content').innerHTML=draftFeedback(window.lastSavedFormDraft)+'<button class="btn secondary" onclick="page=\'root\';tab=\'home\';render()">返回工作台</button>';return}originalDraftLegacy();if(['record','review','newplan'].includes(page)){const btn=document.createElement('button');btn.className='btn secondary';btn.textContent='保存草稿';btn.setAttribute('onclick','saveFormDraft()');const submit=[...$('#content').children].find(e=>e.matches('button.btn')&&/submitRecord|saveNewPlan/.test(e.getAttribute('onclick')||''));if(submit)submit.before(btn)}if(page==='root'&&tab==='home'&&Object.keys(data.formDrafts||{}).length){const box=document.createElement('div');box.className='saved-draft-entry';box.innerHTML=Object.keys(data.formDrafts).map(k=>`<button onclick="restoreFormDraft('${k}')">${k==='follow'?'跟进记录':'拜访计划'}草稿 · 继续填写 ›</button>`).join('');$('#app').appendChild(box)}};
+const originalDraftRender=render;
+render=function(){document.querySelector('.saved-draft-entry')?.remove();originalDraftRender()};
+const originalDraftSubmit=submitRecord;
+submitRecord=function(){const n=data.records.length;originalDraftSubmit();if(data.records.length>n&&data.formDrafts){delete data.formDrafts.follow;save()}};
+const originalDraftPlanSave=saveNewPlan;
+saveNewPlan=function(){const n=data.tasks.length;originalDraftPlanSave();if(data.tasks.length>n&&data.formDrafts){delete data.formDrafts.plan;save()}};
+let formDraftTimer;
+document.addEventListener('input',()=>{if(['record','review','newplan'].includes(page)){clearTimeout(formDraftTimer);formDraftTimer=setTimeout(rememberFormDraft,350)}},true);
+document.addEventListener('change',()=>{if(['record','review','newplan'].includes(page))rememberFormDraft()},true);
+window.addEventListener('pagehide',rememberFormDraft);
+
+if(data.formDrafts&&Object.keys(data.formDrafts).length)render();
