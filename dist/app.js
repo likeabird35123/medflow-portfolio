@@ -168,7 +168,7 @@ function confirmExitFill(){
  if(data.formDrafts&&!keepDraft)delete data.formDrafts[kind];
  if(kind==='follow'){if(!keepDraft&&activeFollowDraftId&&data.followDrafts)delete data.followDrafts[activeFollowDraftId];activeFollowDraftId=null;draft='';activeSkill='记录跟进';followPlanId=selected;chatDoctor=client}
  else{newPlanDraft={c:'',title:'',date:'',time:'',content:''};data.newPlanDraft=newPlanDraft;planFillSession=false;activeSkill='新建拜访计划'}
- chat.push({role:'assistant',html:keepDraft?draftFeedback(kept):'<div class="fill-cancelled"><h3>已取消本轮填报</h3><p>你可以继续通过语音或文字补充信息，我会重新整理，再与你确认。</p></div>'});tab='ai';page='root';routeHistory=[];isGoingBack=true;save();render();
+ chat.push({role:'assistant',html:'<div class="fill-cancelled"><h3>已取消本次填报</h3><p>你可以继续通过语音或文字补充信息，让 AI 重新整理，再次确认后填写表单。</p></div>'});tab='ai';page='root';routeHistory=[];isGoingBack=true;save();render();
 }
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.getElementById('exit-fill-dialog')){e.preventDefault();closeExitFill()}});
 const originalDraftLegacy=renderLegacy;
