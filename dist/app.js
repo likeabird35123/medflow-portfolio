@@ -157,7 +157,20 @@ function saveFormDraft(){const d=rememberFormDraft();if(d)toast('草稿已保存
 function restoreFormDraft(kind){const d=data.formDrafts?.[kind];if(!d)return toast('暂无草稿');if(kind==='plan'){newPlanDraft={...d.values};page='newplan'}else{client=d.client;selected=d.selected;draft=d.content;followMethod=d.method;followAt=d.at;activeFollowDraftId=d.aiDraftId;manualFollowOriginal=d.originalInput||'';page=d.page;if(activeFollowDraftId&&data.followDrafts?.[activeFollowDraftId])Object.assign(data.followDrafts[activeFollowDraftId],{content:draft,method:followMethod,at:followAt})}render();if(kind==='follow'&&document.getElementById('complete-old'))document.getElementById('complete-old').checked=d.complete}
 function draftFeedback(d){return `<div class="draft-saved-card"><h3>草稿已保存</h3><p>你刚才中断了${d.kind==='follow'?'跟进记录':'拜访计划'}的提交，填写内容已保存为草稿，尚未提交。</p><button class="btn" onclick="restoreFormDraft('${d.kind}')">查看草稿</button></div>`}
 const originalDraftBack=goBack;
-goBack=function(){const d=rememberFormDraft();originalDraftBack();if(!d)return;if(tab==='ai'&&page==='root'){chat.push({role:'assistant',html:draftFeedback(d)});render()}else{page='draftsaved';window.lastSavedFormDraft=d;render()}};
+goBack=function(){
+ if(!['record','review','newplan'].includes(page)){originalDraftBack();return}
+ if(document.getElementById('exit-fill-dialog'))return;
+ const overlay=document.createElement('div');overlay.id='exit-fill-dialog';overlay.className='exit-fill-mask';overlay.innerHTML='<section class="exit-fill-dialog" role="dialog" aria-modal="true" aria-labelledby="exit-fill-title"><h3 id="exit-fill-title">确定退出填报？</h3><p>本轮表单将取消，你可以返回 AI 对话继续补充信息。</p><div><button onclick="closeExitFill()">取消</button><button class="exit-fill-confirm" onclick="confirmExitFill()">确定</button></div></section>';document.getElementById('app').appendChild(overlay);overlay.querySelector('button').focus();
+};
+function closeExitFill(){document.getElementById('exit-fill-dialog')?.remove()}
+function confirmExitFill(){
+ const kind=page==='newplan'?'plan':'follow';clearTimeout(formDraftTimer);closeExitFill();
+ if(data.formDrafts)delete data.formDrafts[kind];
+ if(kind==='follow'){if(activeFollowDraftId&&data.followDrafts)delete data.followDrafts[activeFollowDraftId];activeFollowDraftId=null;draft='';activeSkill='记录跟进';followPlanId=selected;chatDoctor=client}
+ else{newPlanDraft={c:'',title:'',date:'',time:'',content:''};data.newPlanDraft=newPlanDraft;planFillSession=false;activeSkill='新建拜访计划'}
+ chat.push({role:'assistant',html:'<div class="fill-cancelled"><h3>已取消本轮填报</h3><p>你可以继续通过语音或文字补充信息，我会重新整理，再与你确认。</p></div>'});tab='ai';page='root';routeHistory=[];isGoingBack=true;save();render();
+}
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.getElementById('exit-fill-dialog')){e.preventDefault();closeExitFill()}});
 const originalDraftLegacy=renderLegacy;
 renderLegacy=function(){if(page==='draftsaved'){head('草稿已保存','',true);document.querySelector('.composer')?.remove();$('#content').innerHTML=draftFeedback(window.lastSavedFormDraft)+'<button class="btn secondary" onclick="page=\'root\';tab=\'home\';render()">返回工作台</button>';return}originalDraftLegacy();if(['record','review','newplan'].includes(page)){const btn=document.createElement('button');btn.className='btn secondary';btn.textContent='保存草稿';btn.setAttribute('onclick','saveFormDraft()');const submit=[...$('#content').children].find(e=>e.matches('button.btn')&&/submitRecord|saveNewPlan/.test(e.getAttribute('onclick')||''));if(submit)submit.before(btn)}if(page==='root'&&tab==='home'&&Object.keys(data.formDrafts||{}).length){const box=document.createElement('div');box.className='saved-draft-entry';box.innerHTML=Object.keys(data.formDrafts).map(k=>`<button onclick="restoreFormDraft('${k}')">${k==='follow'?'跟进记录':'拜访计划'}草稿 · 继续填写 ›</button>`).join('');$('#app').appendChild(box)}};
 const originalDraftRender=render;
